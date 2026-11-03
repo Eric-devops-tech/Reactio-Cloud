@@ -1,14 +1,14 @@
 # REACTIO Cloud
 
-Entrega de DevOps Tools & Cloud Computing: API Java do REACTIO em container Docker numa VM Linux Azure.
+Entrega da disciplina Cloud Computing, de Carlos Miguel: API Java do REACTIO em container Docker numa VM Linux Azure.
 
 ## Integrantes
 
 | Nome | RM | Turma |
 | --- | --- | --- |
-| Kayque Duarte | 567980 | 2TDSPB |
-| Eric Maciel Martins | 567398 | 2TDSPB |
+| Eric Maciel | 567398 | 2TDSPB |
 | Gabriel Correa | 567903 | 2TDSPB |
+| Kayque Duarte | 567980 | 2TDSPB |
 
 ## Escopo e arquitetura
 
@@ -23,12 +23,11 @@ flowchart LR
     G[GitHub + submódulo Java] -. build .-> C
 ```
 
-## Ambiente Azure atual
+## Ambiente Azure usado na demonstração
 
-Provisionado em 03/11/2026 via Azure CLI: grupo `rg-reactio-cloud-demo-20261103`; VM `vm-reactio-demo`; Ubuntu 22.04; Chile Central, zona 3; `Standard_B2s_v2` (2 vCPU, 8 GiB). Container `reactio-api` ativo na porta 8080. A regra TCP 8080 está limitada ao IP autorizado. Os endereços são temporários e só acessíveis dentro dessa regra:
+Provisionado em 03/11/2026 via Azure CLI: grupo `rg-reactio-cloud-demo-20261103`; VM `vm-reactio-demo`; Ubuntu 22.04; Chile Central, zona 3; `Standard_B2s_v2` (2 vCPU, 8 GiB). A API foi demonstrada na porta 8080, com acesso limitado ao IP autorizado. Após a gravação do vídeo, o grupo de recursos e a VM foram excluídos para encerrar os custos. A infraestrutura pode ser recriada seguindo [docs/azure-cli.md](docs/azure-cli.md).
 
-- Quiz: http://68.211.73.197:8080/api/quiz
-- Swagger: http://68.211.73.197:8080/swagger-ui.html
+Vídeo demonstrativo: [REACTIO - Cloud Computing](https://youtu.be/KybD_mHrX5M)
 
 ## Obter e executar localmente
 
@@ -61,10 +60,10 @@ O Docker empacota a API Java e suas dependências em uma imagem reproduzível, r
 
 - [x] Dockerfile, arquitetura e instruções Azure CLI
 - [x] VM criada via CLI e container em execução
-- [ ] Vídeo não listado no YouTube, até 3 min, mínimo 720p
-- [ ] PDF final com nomes, RMs, turma e links
+- [x] Vídeo demonstrativo não listado no YouTube (até 3 min, mínimo 720p)
+- [ ] PDF final com integrantes, RMs, turma, repositório e vídeo
 
-Após gravar, remova o grupo dedicado para encerrar os recursos e custos:
+O grupo dedicado já foi removido após a gravação. Para repetir a demonstração no Azure, use os comandos de provisionamento em [docs/azure-cli.md](docs/azure-cli.md). Ao terminar uma nova execução, remova o grupo para encerrar os recursos e custos:
 
 ```powershell
 az group delete --name rg-reactio-cloud-demo-20261103 --yes --no-wait
