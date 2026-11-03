@@ -1,0 +1,3 @@
+[submodule "api/REACTIO-java"]
+	path = api/REACTIO-java
+	url = https://github.com/Kayque2012/REACTIO-java.git

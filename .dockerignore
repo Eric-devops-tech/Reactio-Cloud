@@ -1,8 +1,9 @@
 .git
-.idea
-.vscode
-target
-data
+**/.git
+**/target
+**/data
+**/.idea
+**/.vscode
 *.iml
 *.log
 .env
