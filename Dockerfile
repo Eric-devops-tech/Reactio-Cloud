@@ -21,7 +21,6 @@ ENV SERVER_ADDRESS=0.0.0.0 \
     PORT=8080 \
     DB_URL=jdbc:h2:file:/app/data/reactio \
     DB_USER=sa \
-    DB_PASSWORD= \
     SEED_ENABLED=true
 
 VOLUME ["/app/data"]
