@@ -1,6 +1,6 @@
 # REACTIO Cloud
 
-Entrega de DevOps Tools & Cloud Computing para demonstrar a API Java do REACTIO em um container Docker executado em uma VM Linux na Microsoft Azure.
+Entrega de DevOps Tools & Cloud Computing: API Java do REACTIO em container Docker numa VM Linux Azure.
 
 ## Integrantes
 
@@ -10,77 +10,54 @@ Entrega de DevOps Tools & Cloud Computing para demonstrar a API Java do REACTIO 
 | Eric Maciel Martins | 567398 | 2TDSPB |
 | Gabriel Correa | 567903 | 2TDSPB |
 
-## Escopo desta entrega
+## Escopo e arquitetura
 
-Este repositório cuida da execução e da infraestrutura demonstrativa. O código da API continua no [repositório Java original](https://github.com/Kayque2012/REACTIO-java) e é referenciado aqui como submódulo em `api/REACTIO-java`.
-
-A aplicação é uma API REST Spring Boot 3.5 / Java 17. Ela fornece CRUD editorial de afirmações e endpoints de quiz com feedback e fontes. O banco H2 em arquivo é mantido em um volume Docker. Login e persistência das tentativas não fazem parte da API Java desta Sprint.
-
-## Arquitetura simplificada
+Este repositório contém os arquivos Cloud. A API permanece no [repositório Java original](https://github.com/Kayque2012/REACTIO-java), referenciado no submódulo `api/REACTIO-java`. A API Spring Boot 3.5 / Java 17 oferece CRUD editorial e endpoints de quiz. O banco H2 em arquivo usa volume Docker.
 
 ```mermaid
 flowchart LR
-    U[Usuário ou avaliador] -->|HTTP :8080| NSG[Regra de entrada da VM]
-    NSG --> VM[VM Linux na Azure]
-    VM --> C[Container Docker: API Spring Boot]
-    C -->|JPA| V[(Volume Docker: arquivo H2)]
-    G[GitHub: este repositório + submódulo Java] -. build da imagem .-> C
+    U[Usuário / avaliador] -->|HTTP 8080| N[NSG: IP autorizado]
+    N --> VM[VM Ubuntu Azure]
+    VM --> C[Container Docker: API]
+    C --> V[(Volume reactio-data: H2)]
+    G[GitHub + submódulo Java] -. build .-> C
 ```
 
-O container publica a porta `8080`. O arquivo do H2 fica no volume `reactio-data`, separado do ciclo de vida do container. A VM executa a mesma imagem que pode ser construída localmente.
+## Ambiente Azure atual
 
-## Pré-requisitos
+Provisionado em 03/11/2026 via Azure CLI: grupo `rg-reactio-cloud-demo-20261103`; VM `vm-reactio-demo`; Ubuntu 22.04; Chile Central, zona 3; `Standard_B2s_v2` (2 vCPU, 8 GiB). Container `reactio-api` ativo na porta 8080. A regra TCP 8080 está limitada ao IP autorizado. Os endereços são temporários e só acessíveis dentro dessa regra:
 
-- Git com suporte a submódulos;
-- Docker Desktop ou Docker Engine;
-- Para a etapa de nuvem: Azure CLI e acesso a uma assinatura Azure.
+- Quiz: http://68.211.73.197:8080/api/quiz
+- Swagger: http://68.211.73.197:8080/swagger-ui.html
 
-## Obter o projeto
-
-Clone este repositório inicializando o submódulo da API:
+## Obter e executar localmente
 
 ```bash
 git clone --recurse-submodules https://github.com/Eric-devops-tech/Reactio-Cloud.git
 cd Reactio-Cloud
-```
-
-Se o repositório já foi clonado sem o submódulo:
-
-```bash
-git submodule update --init --recursive
-```
-
-## Construir e executar com Docker
-
-Na raiz deste repositório:
-
-```bash
 docker build -t reactio-api:local .
 docker volume create reactio-data
 docker run --name reactio-api -p 8080:8080 -v reactio-data:/app/data reactio-api:local
 ```
 
-Verifique a API em `http://localhost:8080/swagger-ui.html` e `http://localhost:8080/api/quiz`. Para interromper o container, use `docker stop reactio-api`. O volume `reactio-data` preserva o arquivo H2 entre recriações do container.
-
-O Dockerfile compila a API Java 17 em uma etapa Maven e copia o JAR para uma imagem de execução Java 17. O processo roda como usuário sem privilégios e a aplicação escuta em `0.0.0.0` dentro do container.
+Acesse `http://localhost:8080/api/quiz` ou `http://localhost:8080/swagger-ui.html`. Requisitos: Git com submódulos, Docker e Azure CLI para a etapa de nuvem.
 
 ## Azure CLI
 
-Os comandos para provisionar uma VM, executar o container e remover os recursos estão em [docs/azure-cli.md](docs/azure-cli.md). A VM é criada sem regras de entrada; o roteiro adiciona acesso restrito ao IP do demonstrador para a porta `8080`.
+Veja [docs/azure-cli.md](docs/azure-cli.md) para provisionamento, instalação do Docker, comandos de verificação, histórico e limpeza. Arquitetura: [docs/arquitetura.md](docs/arquitetura.md).
 
-## Como Docker e Cloud Computing podem ser utilizados na solução proposta pelo grupo?
+Docker empacota a API e suas dependências de forma reproduzível. Azure fornece VM Linux e rede para disponibilizar o container; o volume mantém os dados H2 ao recriar o container.
 
-O Docker empacota a API Java e suas dependências em uma imagem reproduzível, reduzindo diferenças entre o computador de desenvolvimento e o ambiente de demonstração. A Azure fornece a VM Linux e a rede para executar esse container e disponibilizar os endpoints da API. Um volume Docker mantém os dados do H2 quando o container é recriado.
+## Entregas
 
-## Entregas finais da disciplina
+- [x] Dockerfile, arquitetura e instruções Azure CLI
+- [x] VM criada via CLI e container em execução
+- [ ] Vídeo não listado no YouTube, até 3 min, mínimo 720p
+- [ ] PDF final com nomes, RMs, turma e links
 
-- [x] Dockerfile da API;
-- [x] Arquitetura simplificada;
-- [x] Instruções para reproduzir a execução;
-- [ ] Evidências da VM Azure criada via Azure CLI e container em execução;
-- [ ] Link do vídeo demonstrativo não listado (até 3 minutos, mínimo 720p);
-- [ ] PDF final com integrantes, RMs, turma e links do GitHub e do vídeo.
+Após gravar, remova o grupo dedicado para encerrar os recursos e custos:
 
-## Observação de segurança
-
-A API Java desta Sprint não autentica os endpoints editoriais. No roteiro de nuvem, a porta `8080` fica acessível apenas ao IP do demonstrador durante a apresentação. Remova o grupo de recursos ao concluir a demonstração.
+```powershell
+az group delete --name rg-reactio-cloud-demo-20261103 --yes --no-wait
+```
+Confira o nome antes da exclusão. O grupo automático `NetworkWatcherRG` não pertence ao projeto.

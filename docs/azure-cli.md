@@ -1,118 +1,99 @@
-# Provisionamento e demonstração na Azure com CLI
+# Azure CLI: provisionamento e demonstração
 
-Os comandos abaixo são exemplos para uma demonstração temporária. Execute-os no PowerShell com Azure CLI instalado e autenticado. Confira a região, a disponibilidade da VM e as políticas da sua assinatura antes de criar recursos.
+Comandos PowerShell usados nesta entrega e passos para reproduzir em uma implantação nova. Recursos Azure podem gerar custos.
 
-## 1. Definir nomes e criar o grupo de recursos
+## Configuração criada
+
+Grupo `rg-reactio-cloud-demo-20261103`, Chile Central (`chilecentral`), VM `vm-reactio-demo`, Ubuntu 22.04 (`Ubuntu2204`), zona 3, tamanho `Standard_B2s_v2`, usuário `azureuser`. Chave SSH gerada pelo CLI; SSH não foi aberto. O container `reactio-api` publica TCP 8080 e persiste H2 no volume `reactio-data`.
+
+## 1. Login e grupo
 
 ```powershell
 az login
 az account show --output table
-
-$resourceGroup = "rg-reactio-cloud-demo"
-$location = "brazilsouth"
+$resourceGroup = "rg-reactio-cloud-demo-20261103"
+$location = "chilecentral"
 $vmName = "vm-reactio-demo"
-$adminUser = "azureuser"
-$vmSize = "Standard_B1s"
-
-az group create --name $resourceGroup --location $location
+az group create --name $resourceGroup --location $location --tags project=REACTIO purpose=academic-demo
 ```
 
-O tamanho `Standard_B1s` é um exemplo; confirme que está disponível e permitido na sua assinatura e região. A criação de uma VM pode gerar custos.
+## 2. Provisionar a VM via CLI
 
-## 2. Criar uma VM Ubuntu sem regra de entrada aberta
+Este é o comando usado para criar a VM existente. Não execute novamente enquanto ela estiver em uso.
 
 ```powershell
 az vm create `
   --resource-group $resourceGroup `
   --name $vmName `
   --location $location `
+  --zone 3 `
   --image Ubuntu2204 `
-  --size $vmSize `
-  --admin-username $adminUser `
+  --size Standard_B2s_v2 `
+  --admin-username azureuser `
   --generate-ssh-keys `
   --nsg-rule NONE `
-  --public-ip-sku Standard
+  --public-ip-sku Standard `
+  --tags project=REACTIO purpose=academic-demo
 ```
 
-O comando gera uma chave SSH local se ela ainda não existir. A regra de entrada é criada separadamente para limitar a exposição.
+## 3. Regra de rede restrita ao IP do demonstrador
 
-## 3. Permitir acesso de demonstração apenas do seu IP
-
-O acesso público ao endpoint deve ser temporário. A API desta Sprint não autentica os endpoints editoriais.
+A API não autentica as operações editoriais. Restrinja a porta 8080 ao IP de origem:
 
 ```powershell
 $myIp = (Invoke-RestMethod -Uri "https://api.ipify.org").Trim()
 $nicId = az network nic list --resource-group $resourceGroup --query "[0].id" --output tsv
 $nsgId = az network nic show --ids $nicId --query "networkSecurityGroup.id" --output tsv
-$nsgName = Split-Path $nsgId -Leaf
-
-az network nsg rule create `
-  --resource-group $resourceGroup `
-  --nsg-name $nsgName `
-  --name "AllowReactio8080FromDemoIP" `
-  --priority 1100 `
-  --direction Inbound `
-  --access Allow `
-  --protocol Tcp `
-  --source-address-prefixes "$myIp/32" `
-  --source-port-ranges "*" `
-  --destination-address-prefixes "*" `
-  --destination-port-ranges 8080
+$nsgName = ($nsgId -split "/")[-1]
+az network nsg rule create --resource-group $resourceGroup --nsg-name $nsgName --name AllowReactio8080FromDemoIP --priority 1100 --direction Inbound --access Allow --protocol Tcp --source-address-prefixes "$myIp/32" --source-port-ranges "*" --destination-address-prefixes "*" --destination-port-ranges 8080
 ```
 
-Se o professor precisar acessar diretamente, ajuste a regra para o IP dele durante a demonstração e remova-a depois.
+## 4. Instalar Docker e executar a API
 
-## 4. Instalar Docker e iniciar a API
-
-Este exemplo usa Run Command da VM para evitar abrir SSH. A VM baixa este repositório público e inicializa o submódulo Java.
+Run Command executa comandos na VM sem abrir SSH. O comando clona este repositório, constrói a imagem e inicia o container:
 
 ```powershell
-$deployScript = @'
-set -eux
-apt-get update
-apt-get install -y docker.io git
-systemctl enable --now docker
-git clone --recurse-submodules https://github.com/Eric-devops-tech/Reactio-Cloud.git /opt/reactio-cloud
-cd /opt/reactio-cloud
-docker build -t reactio-api:demo .
-docker volume create reactio-data
-docker run -d --name reactio-api --restart unless-stopped -p 8080:8080 -v reactio-data:/app/data reactio-api:demo
-'@
-
-az vm run-command invoke `
-  --resource-group $resourceGroup `
-  --name $vmName `
-  --command-id RunShellScript `
-  --scripts $deployScript
+$deployScript = "set -eux && apt-get update && apt-get install -y docker.io git && systemctl enable --now docker && git clone --recurse-submodules https://github.com/Eric-devops-tech/Reactio-Cloud.git /opt/reactio-cloud && cd /opt/reactio-cloud && docker build -t reactio-api:demo . && docker volume create reactio-data && docker run -d --name reactio-api --restart unless-stopped -p 8080:8080 -v reactio-data:/app/data reactio-api:demo"
+az vm run-command invoke --resource-group $resourceGroup --name $vmName --command-id RunShellScript --scripts $deployScript
 ```
 
-Consultar IP público e testar:
+Verificação do container:
 
 ```powershell
-$publicIp = az vm show --show-details --resource-group $resourceGroup --name $vmName --query publicIps --output tsv
-Write-Output "http://$($publicIp):8080/swagger-ui.html"
+az vm run-command invoke --resource-group $resourceGroup --name $vmName --command-id RunShellScript --scripts "docker ps"
+az vm list --resource-group $resourceGroup --show-details --output table
+```
+
+## 5. Evidências do Azure
+
+O Azure mantém o histórico de implantação e de atividade, mesmo depois de fechar o terminal:
+
+```powershell
+az deployment group list --resource-group $resourceGroup --query "[].{implantacao:name,status:properties.provisioningState,data:properties.timestamp}" --output table
+az monitor activity-log list --resource-group $resourceGroup --offset 1d --max-events 50 --query "[?operationName.localizedValue=='Create or Update Virtual Machine'].{data:eventTimestamp,status:status.value,operacao:operationName.localizedValue}" --output table
+```
+
+Consultar o endpoint:
+
+```powershell
+$publicIp = az network public-ip list --resource-group $resourceGroup --query "[0].ipAddress" --output tsv
 Invoke-RestMethod -Uri "http://$($publicIp):8080/api/quiz"
 ```
 
-## 5. Verificar a VM e os recursos
+Grave VM, container e resposta da API. O vídeo deve ser não listado no YouTube, máximo 3 minutos e mínimo 720p. Se o professor usar outra rede, inclua o IP dele temporariamente na regra.
 
-```powershell
-az vm show --show-details --resource-group $resourceGroup --name $vmName --output table
-az resource list --resource-group $resourceGroup --output table
-```
+## 6. Limpeza
 
-Grave a tela mostrando a criação com Azure CLI, a API em execução e uma chamada bem-sucedida ao endpoint.
-
-## 6. Remover recursos ao concluir
-
-Revise o nome do grupo antes de executar. A exclusão remove todos os recursos dentro dele, incluindo VM, discos, IP público, rede e NSG.
+Revise o nome e remova o grupo dedicado após a demonstração:
 
 ```powershell
 az group delete --name $resourceGroup --yes --no-wait
 ```
 
-## Referências oficiais
+Isso remove VM, disco, IP, rede e NSG do projeto. Mantenha o grupo automático `NetworkWatcherRG`.
+
+## Referências
 
 - [Criar uma VM Linux com Azure CLI](https://learn.microsoft.com/azure/virtual-machines/linux/quick-create-cli)
-- [Referência `az vm`](https://learn.microsoft.com/cli/azure/vm?view=azure-cli-latest)
-- [Executar scripts em uma VM Linux com Run Command](https://learn.microsoft.com/azure/virtual-machines/linux/run-command)
+- [Referência az vm](https://learn.microsoft.com/cli/azure/vm?view=azure-cli-latest)
+- [Azure Run Command](https://learn.microsoft.com/azure/virtual-machines/linux/run-command)
