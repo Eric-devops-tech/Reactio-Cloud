@@ -46,7 +46,16 @@ Acesse `http://localhost:8080/api/quiz` ou `http://localhost:8080/swagger-ui.htm
 
 Veja [docs/azure-cli.md](docs/azure-cli.md) para provisionamento, instalação do Docker, comandos de verificação, histórico e limpeza. Arquitetura: [docs/arquitetura.md](docs/arquitetura.md).
 
-Docker empacota a API e suas dependências de forma reproduzível. Azure fornece VM Linux e rede para disponibilizar o container; o volume mantém os dados H2 ao recriar o container.
+## Arquivos para reprodução
+
+- [`Dockerfile`](Dockerfile) e [`.dockerignore`](.dockerignore): construção da imagem da API;
+- [`docs/azure-cli.md`](docs/azure-cli.md): comandos Azure CLI para criar a infraestrutura, implantar e verificar o container, e excluir os recursos;
+- [`docs/arquitetura.md`](docs/arquitetura.md): diagrama e descrição dos componentes;
+- submódulo [`api/REACTIO-java`](api/REACTIO-java): código-fonte Java necessário para construir a imagem.
+
+## Como Docker e Cloud Computing podem ser utilizados na solução proposta pelo grupo?
+
+O Docker empacota a API Java e suas dependências em uma imagem reproduzível, reduzindo diferenças entre o desenvolvimento local e a demonstração. A Azure fornece a VM Linux e a rede para executar e disponibilizar o container. O volume Docker mantém os dados do H2 quando o container é recriado.
 
 ## Entregas
 
